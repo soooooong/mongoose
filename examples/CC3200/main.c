@@ -50,7 +50,7 @@
 #define BM222_ADDR 0x18
 #define TMP006_ADDR 0x41
 
-void fs_slfs_set_new_file_size(const char *name, size_t size);
+void fs_slfs_set_file_size(const char *name, size_t size);
 
 static const char *upload_form =
     "\
@@ -70,7 +70,7 @@ static struct mg_str upload_fname(struct mg_connection *nc,
   if (nc->user_data != NULL) {
     intptr_t cl = (intptr_t) nc->user_data;
     if (cl >= 0) {
-      fs_slfs_set_new_file_size(fn + 3, cl);
+      fs_slfs_set_file_size(fn + 3, cl);
     }
   }
   lfn.len = fname.len + 4;
@@ -176,7 +176,7 @@ static void mg_init(struct mg_mgr *mgr) {
     memset(&ver, 0, sizeof(ver));
     sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &opt, &len,
               (unsigned char *) (&ver));
-    LOG(LL_INFO, ("NWP v%d.%d.%d.%d started, host v%d.%d.%d.%d",
+    LOG(LL_INFO, ("NWP v%ld.%ld.%ld.%ld started, host v%ld.%ld.%ld.%ld",
                   ver.NwpVersion[0], ver.NwpVersion[1], ver.NwpVersion[2],
                   ver.NwpVersion[3], SL_MAJOR_VERSION_NUM, SL_MINOR_VERSION_NUM,
                   SL_VERSION_NUM, SL_SUB_VERSION_NUM));
@@ -293,4 +293,17 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *e) {
 void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *e) {
   LOG(LL_ERROR, ("status %d sender %d", e->EventData.deviceEvent.status,
                  e->EventData.deviceEvent.sender));
+}
+
+#ifndef __TI_COMPILER_VERSION__
+int _gettimeofday_r(struct _reent *r, struct timeval *tp, void *tz) {
+#else
+int gettimeofday(struct timeval *tp, void *tz) {
+#endif
+  unsigned long sec;
+  unsigned short msec;
+  MAP_PRCMRTCGet(&sec, &msec);
+  tp->tv_sec = sec;
+  tp->tv_usec = ((unsigned long) msec) * 1000;
+  return 0;
 }
